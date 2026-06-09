@@ -1,30 +1,43 @@
+# dbt
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+dbt_project/profiles.yml
+
+# Great Expectations
+great_expectations/uncommitted/
+great_expectations/.ge_store_backend_id
+
 # Python
 __pycache__/
-*.py[cod]
-*.so
+*.pyc
+*.pyo
 .venv/
-venv/
-.eggs/
-dist/
-build/
+.env
 *.egg-info/
-# Tests
-.coverage
-.pytest_cache/
-htmlcov/
-.mypy_cache/
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
+
+# GCP credentials
+*.json
+!great_expectations/expectations/*.json
+!great_expectations/checkpoints/*.json
+gcp-keyfile.json
+service-account.json
+
+# Airflow
+airflow/logs/
+
 # IDE
 .vscode/
 .idea/
-*.DS_Store
-# GCP / secrets
-*.json
-service-account*.json
-.env
-.env.*
-!.env.example
-# Notebooks
-.ipynb_checkpoints/
-# Models
-models/*.pkl
-models/*.h5
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
