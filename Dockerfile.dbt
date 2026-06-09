@@ -1,0 +1,17 @@
+FROM python:3.11-slim
+
+WORKDIR /opt/dbt_project
+
+RUN pip install --no-cache-dir \
+    dbt-bigquery==1.7.4 \
+    great-expectations==0.18.9 \
+    sqlalchemy-bigquery \
+    google-cloud-bigquery \
+    google-cloud-storage
+
+COPY dbt_project/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY dbt_project/ .
+
+CMD ["dbt", "--version"]
