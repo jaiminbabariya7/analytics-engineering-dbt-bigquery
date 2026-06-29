@@ -1,0 +1,29 @@
+version: 2
+
+sources:
+  - name: raw
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: raw
+    tables:
+      - name: customers
+      - name: products
+      - name: sales
+
+models:
+  - name: stg_customers
+    description: Cleaned and normalised customer records.
+    columns:
+      - name: customer_id
+        tests: [unique, not_null]
+      - name: email
+        tests: [not_null]
+  - name: stg_products
+    description: Product catalogue with computed margin fields.
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+  - name: stg_sales
+    description: Cleaned sales transactions with net_revenue.
+    columns:
+      - name: sale_id
+        tests: [unique, not_null]
