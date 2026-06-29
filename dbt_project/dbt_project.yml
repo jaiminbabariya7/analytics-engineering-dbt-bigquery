@@ -1,0 +1,31 @@
+name: analytics_engineering
+version: '1.0.0'
+config-version: 2
+
+profile: analytics_engineering
+
+model-paths: ["models"]
+snapshot-paths: ["snapshots"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+analysis-paths: ["analyses"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  analytics_engineering:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: ephemeral
+    mart:
+      +materialized: table
+      +schema: mart
+      fct_sales:
+        +partition_by:
+          field: sale_date
+          data_type: date
+          granularity: day
+        +cluster_by: ["category", "country", "channel"]
