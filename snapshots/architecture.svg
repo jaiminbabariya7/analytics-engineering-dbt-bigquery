@@ -1,0 +1,113 @@
+<svg viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+  <!-- Background -->
+  <rect width="900" height="520" fill="#0d1117" rx="12"/>
+
+  <!-- Title -->
+  <text x="450" y="38" text-anchor="middle" font-size="18" font-weight="bold" fill="#e6edf3">Analytics Engineering Pipeline — dbt + BigQuery + Airflow</text>
+
+  <!-- Layer labels -->
+  <text x="72" y="80" font-size="11" fill="#8b949e" font-weight="bold">SOURCES</text>
+  <text x="240" y="80" font-size="11" fill="#8b949e" font-weight="bold">RAW LAYER</text>
+  <text x="390" y="80" font-size="11" fill="#8b949e" font-weight="bold">STAGING</text>
+  <text x="540" y="80" font-size="11" fill="#8b949e" font-weight="bold">INTERMEDIATE</text>
+  <text x="700" y="80" font-size="11" fill="#8b949e" font-weight="bold">MART</text>
+
+  <!-- GCS Source box -->
+  <rect x="20" y="90" width="130" height="50" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="85" y="111" text-anchor="middle" font-size="12" fill="#58a6ff">GCS Bucket</text>
+  <text x="85" y="128" text-anchor="middle" font-size="10" fill="#8b949e">customers / products / sales</text>
+
+  <!-- Ingestion arrow -->
+  <line x1="150" y1="115" x2="210" y2="115" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="180" y="108" text-anchor="middle" font-size="9" fill="#8b949e">Python</text>
+
+  <!-- BigQuery Raw -->
+  <rect x="210" y="90" width="130" height="50" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="275" y="111" text-anchor="middle" font-size="12" fill="#58a6ff">BigQuery Raw</text>
+  <text x="275" y="128" text-anchor="middle" font-size="10" fill="#8b949e">dataset: raw</text>
+
+  <!-- RAW → STAGING arrows -->
+  <line x1="340" y1="115" x2="380" y2="115" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Staging Models -->
+  <rect x="380" y="90" width="130" height="140" rx="8" fill="#161b22" stroke="#238636" stroke-width="1.5"/>
+  <text x="445" y="110" text-anchor="middle" font-size="11" fill="#3fb950" font-weight="bold">dbt staging</text>
+  <text x="445" y="128" text-anchor="middle" font-size="10" fill="#8b949e">stg_customers</text>
+  <text x="445" y="145" text-anchor="middle" font-size="10" fill="#8b949e">stg_products</text>
+  <text x="445" y="162" text-anchor="middle" font-size="10" fill="#8b949e">stg_sales</text>
+  <text x="445" y="180" text-anchor="middle" font-size="9" fill="#6e7681">materialized: view</text>
+  <text x="445" y="196" text-anchor="middle" font-size="9" fill="#6e7681">schema tests + source freshness</text>
+  <text x="445" y="212" text-anchor="middle" font-size="9" fill="#6e7681">schema: staging</text>
+
+  <!-- STAGING → INTERMEDIATE -->
+  <line x1="510" y1="160" x2="530" y2="160" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Intermediate Models -->
+  <rect x="530" y="90" width="140" height="140" rx="8" fill="#161b22" stroke="#d29922" stroke-width="1.5"/>
+  <text x="600" y="110" text-anchor="middle" font-size="11" fill="#e3b341" font-weight="bold">dbt intermediate</text>
+  <text x="600" y="128" text-anchor="middle" font-size="10" fill="#8b949e">int_order_items</text>
+  <text x="600" y="145" text-anchor="middle" font-size="10" fill="#8b949e">int_customer_metrics</text>
+  <text x="600" y="162" text-anchor="middle" font-size="10" fill="#8b949e">RFM + LTV + churn risk</text>
+  <text x="600" y="180" text-anchor="middle" font-size="9" fill="#6e7681">materialized: ephemeral</text>
+  <text x="600" y="196" text-anchor="middle" font-size="9" fill="#6e7681">complex joins + business logic</text>
+
+  <!-- INTERMEDIATE → MART -->
+  <line x1="670" y1="160" x2="690" y2="160" stroke="#30363d" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Mart Models -->
+  <rect x="690" y="90" width="185" height="180" rx="8" fill="#161b22" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="782" y="110" text-anchor="middle" font-size="11" fill="#58a6ff" font-weight="bold">dbt mart</text>
+  <text x="782" y="128" text-anchor="middle" font-size="10" fill="#8b949e">fct_sales</text>
+  <text x="782" y="144" text-anchor="middle" font-size="9" fill="#6e7681">partitioned: sale_date | clustered: category</text>
+  <text x="782" y="163" text-anchor="middle" font-size="10" fill="#8b949e">dim_customers</text>
+  <text x="782" y="179" text-anchor="middle" font-size="9" fill="#6e7681">LTV tier + churn risk + RFM</text>
+  <text x="782" y="198" text-anchor="middle" font-size="10" fill="#8b949e">dim_products</text>
+  <text x="782" y="214" text-anchor="middle" font-size="9" fill="#6e7681">sales metrics + margin tier</text>
+  <text x="782" y="232" text-anchor="middle" font-size="9" fill="#6e7681">materialized: table</text>
+  <text x="782" y="248" text-anchor="middle" font-size="9" fill="#6e7681">schema: mart</text>
+
+  <!-- Snapshots box -->
+  <rect x="380" y="260" width="130" height="60" rx="8" fill="#161b22" stroke="#bc8cff" stroke-width="1.5"/>
+  <text x="445" y="282" text-anchor="middle" font-size="11" fill="#bc8cff" font-weight="bold">dbt snapshots</text>
+  <text x="445" y="298" text-anchor="middle" font-size="10" fill="#8b949e">scd_customers</text>
+  <text x="445" y="314" text-anchor="middle" font-size="9" fill="#6e7681">SCD Type 2</text>
+  <line x1="445" y1="230" x2="445" y2="260" stroke="#30363d" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+
+  <!-- BigQuery ML box -->
+  <rect x="690" y="300" width="185" height="60" rx="8" fill="#161b22" stroke="#ff7b72" stroke-width="1.5"/>
+  <text x="782" y="322" text-anchor="middle" font-size="11" fill="#ff7b72" font-weight="bold">BigQuery ML</text>
+  <text x="782" y="340" text-anchor="middle" font-size="10" fill="#8b949e">Churn logistic regression</text>
+  <text x="782" y="356" text-anchor="middle" font-size="9" fill="#6e7681">train + evaluate + predict</text>
+  <line x1="782" y1="270" x2="782" y2="300" stroke="#30363d" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+
+  <!-- Airflow orchestration -->
+  <rect x="100" y="390" width="660" height="80" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="430" y="412" text-anchor="middle" font-size="12" fill="#58a6ff" font-weight="bold">Apache Airflow — analytics_engineering_pipeline DAG (daily 07:00 UTC)</text>
+  <text x="180" y="435" text-anchor="middle" font-size="10" fill="#8b949e">ingest_customers</text>
+  <text x="290" y="435" text-anchor="middle" font-size="10" fill="#8b949e">ingest_products</text>
+  <text x="400" y="435" text-anchor="middle" font-size="10" fill="#8b949e">ingest_sales</text>
+  <text x="508" y="435" text-anchor="middle" font-size="10" fill="#3fb950">dbt staging</text>
+  <text x="598" y="435" text-anchor="middle" font-size="10" fill="#e3b341">dbt intermediate</text>
+  <text x="700" y="435" text-anchor="middle" font-size="10" fill="#58a6ff">dbt mart</text>
+  <text x="430" y="460" text-anchor="middle" font-size="10" fill="#6e7681">ingest_customers/products/sales >> dbt_staging >> dbt_test_staging >> dbt_intermediate >> dbt_mart >> dbt_test_mart >> dbt_snapshot</text>
+
+  <!-- Arrow definition -->
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#8b949e"/>
+    </marker>
+  </defs>
+
+  <!-- Legend -->
+  <rect x="20" y="390" width="60" height="12" rx="3" fill="none" stroke="#238636" stroke-width="1.5"/>
+  <text x="23" y="401" font-size="9" fill="#3fb950">Staging</text>
+  <rect x="20" y="408" width="60" height="12" rx="3" fill="none" stroke="#d29922" stroke-width="1.5"/>
+  <text x="23" y="419" font-size="9" fill="#e3b341">Intermediate</text>
+  <rect x="20" y="426" width="60" height="12" rx="3" fill="none" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="23" y="437" font-size="9" fill="#58a6ff">Mart</text>
+  <rect x="20" y="444" width="60" height="12" rx="3" fill="none" stroke="#bc8cff" stroke-width="1.5"/>
+  <text x="23" y="455" font-size="9" fill="#bc8cff">Snapshots</text>
+
+  <!-- Tech stack -->
+  <text x="450" y="500" text-anchor="middle" font-size="10" fill="#6e7681">Stack: dbt Core | BigQuery | GCS | Airflow | Python | BigQuery ML | SCD Type 2 | Partitioning + Clustering</text>
+</svg>
