@@ -1,5 +1,9 @@
 # ============================================================
 # Analytics Engineering - GCP Infrastructure
+#   - BigQuery datasets used by the loader and dbt (raw, staging, mart, snapshots)
+#   - GCS bucket for raw CSV drops (GCS_RAW_BUCKET)
+#   - Service account for the loader / dbt runs
+# Scheduling is done by the Airflow DAG itself (daily 07:00 UTC).
 # ============================================================
 
 terraform {
@@ -22,9 +26,9 @@ provider "google" {
 }
 
 # ── BigQuery Datasets ────────────────────────────────────────
+# Names match dbt_project.yml (+schema) via macros/generate_schema_name.sql
 locals {
-  datasets = ["raw", "staging", "intermediate", "marts_finance",
-              "marts_marketing", "marts_operations", "snapshots", "seeds"]
+  datasets = ["raw", "staging", "mart", "snapshots"]
 }
 
 resource "google_bigquery_dataset" "datasets" {
@@ -44,27 +48,38 @@ resource "google_bigquery_dataset" "datasets" {
   }
 }
 
-# ── GCS Bucket ───────────────────────────────────────────────
-resource "google_storage_bucket" "analytics_bucket" {
-  name          = "${var.project_id}-analytics-artifacts"
-  project       = var.project_id
-  location      = var.region
-  force_destroy = false
+# ── GCS bucket for raw CSV files ─────────────────────────────
+resource "google_storage_bucket" "raw_bucket" {
+  name                        = "${var.project_id}-analytics-raw"
+  project                     = var.project_id
+  location                    = var.bq_location
+  force_destroy               = false
+  uniform_bucket_level_access = true
 
-  versioning { enabled = true }
-
-  lifecycle_rule {
-    condition { age = 90 }
-    action    { type = "SetStorageClass"; storage_class = "NEARLINE" }
+  versioning {
+    enabled = true
   }
 
-  labels = { env = var.env, managed = "terraform" }
+  lifecycle_rule {
+    condition {
+      age = 90
+    }
+    action {
+      type          = "SetStorageClass"
+      storage_class = "NEARLINE"
+    }
+  }
+
+  labels = {
+    env     = var.env
+    managed = "terraform"
+  }
 }
 
 # ── Service Account ──────────────────────────────────────────
 resource "google_service_account" "dbt_sa" {
   account_id   = "dbt-runner"
-  display_name = "dbt Runner Service Account"
+  display_name = "Loader + dbt Runner Service Account"
   project      = var.project_id
 }
 
@@ -80,35 +95,8 @@ resource "google_project_iam_member" "dbt_bq_job_user" {
   member  = "serviceAccount:${google_service_account.dbt_sa.email}"
 }
 
-resource "google_storage_bucket_iam_member" "dbt_gcs_admin" {
-  bucket = google_storage_bucket.analytics_bucket.name
-  role   = "roles/storage.objectAdmin"
+resource "google_storage_bucket_iam_member" "dbt_gcs_reader" {
+  bucket = google_storage_bucket.raw_bucket.name
+  role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.dbt_sa.email}"
-}
-
-# ── Cloud Scheduler (trigger Airflow) ────────────────────────
-resource "google_cloud_scheduler_job" "daily_analytics_trigger" {
-  name        = "daily-analytics-pipeline"
-  description = "Trigger analytics engineering DAG daily at 06:00 UTC"
-  schedule    = "0 6 * * *"
-  time_zone   = "UTC"
-  project     = var.project_id
-  region      = var.region
-
-  http_target {
-    uri         = var.composer_trigger_url
-    http_method = "POST"
-    body        = base64encode(jsonencode({ conf = {} }))
-    headers     = { "Content-Type" = "application/json" }
-    oauth_token {
-      service_account_email = google_service_account.dbt_sa.email
-    }
-  }
-}
-
-# ── Secret Manager ───────────────────────────────────────────
-resource "google_secret_manager_secret" "slack_webhook" {
-  secret_id = "slack-webhook-analytics"
-  project   = var.project_id
-  replication { automatic {} }
 }

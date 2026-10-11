@@ -90,6 +90,8 @@ def incremental_load(table: str, cfg: dict) -> None:
         create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED,
     )
     bq.load_table_from_uri(gcs_uri, staging_ref, job_config=job_config).result()
+    # First run: create an empty target with the same schema so MERGE works
+    bq.query(f"CREATE TABLE IF NOT EXISTS `{target_ref}` LIKE `{staging_ref}`").result()
     cols     = [f.name for f in cfg["schema"]]
     updates  = ", ".join(f"T.{c} = S.{c}" for c in cols if c != pk)
     inserts  = ", ".join(f"S.{c}" for c in cols)

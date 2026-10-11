@@ -28,8 +28,8 @@ SELECT
     p.margin_pct,
     p.margin_tier,
 
-    -- Customer fields
-    c.customer_id,
+    -- Customer fields (customer_id from the sale, so orphan sales stay visible)
+    s.customer_id,
     c.first_name,
     c.last_name,
     c.email,

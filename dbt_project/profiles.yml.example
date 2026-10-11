@@ -9,6 +9,7 @@ analytics_engineering:
       threads: 4
       timeout_seconds: 300
       keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS') }}"
+      location: US
     prod:
       type: bigquery
       method: service-account

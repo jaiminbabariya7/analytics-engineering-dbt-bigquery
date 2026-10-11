@@ -1,0 +1,4 @@
+date,product_id,customer_id,quantity,total_price
+2024-05-01,1,101,2,50
+2024-05-01,2,102,3,45
+2024-05-01,3,103,5,75

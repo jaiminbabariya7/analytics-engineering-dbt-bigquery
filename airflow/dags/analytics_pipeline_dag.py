@@ -1,6 +1,7 @@
 """
 Airflow DAG: Analytics Engineering Pipeline.
-Orchestrates: raw ingestion -> dbt staging -> intermediate -> mart -> tests -> snapshots.
+Orchestrates: raw ingestion (MERGE) -> dbt staging + tests -> marts (the
+ephemeral intermediate models compile into them) + tests -> SCD2 snapshot.
 Schedule: Daily at 07:00 UTC.
 """
 from __future__ import annotations
@@ -12,8 +13,10 @@ from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.dates import days_ago
 
-DBT_DIR  = "/opt/airflow/dbt_project"
-DBT_CMD  = f"dbt --project-dir {DBT_DIR} --profiles-dir {DBT_DIR}"
+DBT_DIR      = "/opt/airflow/dbt_project"
+PROFILES_DIR = os.getenv("DBT_PROFILES_DIR", DBT_DIR)      # dbt_project/profiles.yml
+DBT_CMD      = f"dbt --no-use-colors"
+DBT_ARGS     = f"--project-dir {DBT_DIR} --profiles-dir {PROFILES_DIR}"
 
 DEFAULT_ARGS = {
     "owner": "jaimin.babariya",
@@ -64,30 +67,25 @@ with DAG(
 
     dbt_staging = BashOperator(
         task_id="dbt_run_staging",
-        bash_command=f"{DBT_CMD} run --select staging.*",
+        bash_command=f"{DBT_CMD} run --select staging {DBT_ARGS}",
     )
     dbt_test_staging = BashOperator(
         task_id="dbt_test_staging",
-        bash_command=f"{DBT_CMD} test --select staging.*",
-    )
-    dbt_intermediate = BashOperator(
-        task_id="dbt_run_intermediate",
-        bash_command=f"{DBT_CMD} run --select intermediate.*",
+        bash_command=f"{DBT_CMD} test --select staging {DBT_ARGS}",
     )
     dbt_mart = BashOperator(
         task_id="dbt_run_mart",
-        bash_command=f"{DBT_CMD} run --select mart.*",
+        bash_command=f"{DBT_CMD} run --select mart {DBT_ARGS}",
     )
     dbt_test_mart = BashOperator(
         task_id="dbt_test_mart",
-        bash_command=f"{DBT_CMD} test --select mart.*",
+        bash_command=f"{DBT_CMD} test --select mart {DBT_ARGS}",
     )
     dbt_snapshot = BashOperator(
         task_id="dbt_snapshot",
-        bash_command=f"{DBT_CMD} snapshot",
+        bash_command=f"{DBT_CMD} snapshot {DBT_ARGS}",
     )
 
     start >> [ingest_customers, ingest_products, ingest_sales]
     [ingest_customers, ingest_products, ingest_sales] >> dbt_staging
-    dbt_staging >> dbt_test_staging >> dbt_intermediate
-    dbt_intermediate >> dbt_mart >> dbt_test_mart >> dbt_snapshot >> end
+    dbt_staging >> dbt_test_staging >> dbt_mart >> dbt_test_mart >> dbt_snapshot >> end

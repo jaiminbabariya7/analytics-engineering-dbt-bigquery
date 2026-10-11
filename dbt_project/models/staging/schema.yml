@@ -8,6 +8,12 @@ sources:
       - name: customers
       - name: products
       - name: sales
+        # sale_date is the only time column in the raw data; a static sample
+        # will (correctly) warn when this check is run long after it was generated
+        loaded_at_field: "CAST(sale_date AS TIMESTAMP)"
+        freshness:
+          warn_after: {count: 2, period: day}
+          error_after: {count: 7, period: day}
 
 models:
   - name: stg_customers
@@ -27,3 +33,9 @@ models:
     columns:
       - name: sale_id
         tests: [unique, not_null]
+      - name: customer_id
+        tests: [not_null]
+      - name: channel
+        tests:
+          - accepted_values:
+              values: ['online', 'store', 'mobile_app']

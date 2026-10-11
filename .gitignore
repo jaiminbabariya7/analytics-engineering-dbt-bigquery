@@ -4,10 +4,6 @@ dbt_project/dbt_packages/
 dbt_project/logs/
 dbt_project/profiles.yml
 
-# Great Expectations
-great_expectations/uncommitted/
-great_expectations/.ge_store_backend_id
-
 # Python
 __pycache__/
 *.pyc
@@ -25,8 +21,6 @@ terraform/terraform.tfvars
 
 # GCP credentials
 *.json
-!great_expectations/expectations/*.json
-!great_expectations/checkpoints/*.json
 gcp-keyfile.json
 service-account.json
 

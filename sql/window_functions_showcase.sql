@@ -12,11 +12,11 @@ SELECT
         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
     )                                                       AS running_revenue,
 
-    -- 2. 30-day moving average per category
+    -- 2. 30-day moving average per category (RANGE needs a numeric key in BigQuery)
     AVG(net_revenue) OVER (
         PARTITION BY category
-        ORDER BY sale_date
-        RANGE BETWEEN INTERVAL 30 DAY PRECEDING AND CURRENT ROW
+        ORDER BY UNIX_DATE(sale_date)
+        RANGE BETWEEN 29 PRECEDING AND CURRENT ROW
     )                                                       AS ma30_revenue,
 
     -- 3. Rank products by revenue within category

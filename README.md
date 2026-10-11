@@ -5,7 +5,7 @@
 ![Airflow](https://img.shields.io/badge/Airflow-2.8-red?logo=apache-airflow)
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
 
-End-to-end analytics engineering project that loads raw retail data from GCS into BigQuery and transforms it through a three-layer dbt pipeline (staging → intermediate → mart), producing production-ready data marts for customer analytics, product performance, and sales reporting — fully orchestrated by Apache Airflow.
+End-to-end analytics engineering project that loads raw retail data from GCS into BigQuery and transforms it through a three-layer dbt pipeline (staging → intermediate → mart), producing analytics-ready data marts for customer analytics, product performance, and sales reporting — fully orchestrated by Apache Airflow.
 
 ## Architecture
 
@@ -28,39 +28,30 @@ GCS (raw CSV)
 
 ```
 analytics-engineering-dbt-bigquery/
+├── data/                        # Synthetic sample CSVs (customers, products, sales)
+├── scripts/
+│   └── generate_sample_data.py  # Regenerates data/ (seeded, fake names)
+├── ingestion/
+│   └── load_to_bigquery.py      # GCS → BQ raw (full load or MERGE upsert)
 ├── dbt_project/
-│   ├── dbt_project.yml          # Project config (materialisations, schema)
+│   ├── dbt_project.yml          # Materialisations + schemas (staging / mart)
 │   ├── profiles.yml.example     # Dev + prod BigQuery connection
 │   ├── models/
-│   │   ├── staging/             # Thin views over raw BQ tables
-│   │   │   ├── schema.yml       # Sources + column tests
-│   │   │   ├── stg_customers.sql
-│   │   │   ├── stg_products.sql
-│   │   │   └── stg_sales.sql
-│   │   ├── intermediate/        # Ephemeral join + logic layer
-│   │   │   ├── int_order_items.sql
-│   │   │   └── int_customer_metrics.sql
-│   │   └── mart/                # Production tables (partitioned + clustered)
-│   │       ├── fct_sales.sql
-│   │       ├── dim_customers.sql
-│   │       └── dim_products.sql
-│   ├── snapshots/
-│   │   └── scd_customers.sql    # SCD Type 2 customer history
-│   ├── tests/
-│   │   ├── assert_positive_revenue.sql
-│   │   └── assert_no_orphan_sales.sql
-│   └── macros/
-│       └── generate_surrogate_key.sql
-├── ingestion/
-│   └── load_to_bigquery.py      # GCS → BQ raw (full + MERGE)
-├── airflow/
-│   └── dags/analytics_pipeline_dag.py
+│   │   ├── staging/             # Views: clean + cast; schema.yml = sources, freshness, tests
+│   │   ├── intermediate/        # Ephemeral joins + RFM
+│   │   └── mart/                # fct_sales (partitioned + clustered), dim_customers, dim_products
+│   ├── snapshots/scd_customers.sql   # SCD Type 2 customer history
+│   ├── tests/                   # assert_positive_revenue, assert_no_orphan_sales
+│   └── macros/                  # generate_surrogate_key, generate_schema_name
+├── airflow/dags/analytics_pipeline_dag.py
 ├── sql/
+│   ├── bigquery_ml_churn.sql    # BigQuery ML churn model (time-based label)
 │   ├── window_functions_showcase.sql
-│   ├── customer_cohort_analysis.sql
-│   └── bigquery_ml_churn.sql    # time-based churn label, train / evaluate / score
-├── snapshots/
-│   └── architecture.svg
+│   └── customer_cohort_analysis.sql
+├── terraform/                   # BQ datasets, raw bucket, service account
+├── docker-compose.yml           # Local Airflow (+ optional dbt runner)
+├── legacy_v1/                   # First version of the project (May 2024), kept for history
+├── snapshots/architecture.svg
 ├── .env.example
 └── requirements.txt
 ```
@@ -70,18 +61,18 @@ analytics-engineering-dbt-bigquery/
 **dbt Layer Design**
 - `staging` — thin views that clean, cast, and rename raw columns; no business logic.
 - `intermediate` — ephemeral models that join tables and compute RFM metrics, LTV tier, and a rule-based churn-risk segment.
-- `mart` — production tables: `fct_sales` partitioned by `sale_date` and clustered by `category/country/channel`; `dim_customers` with full RFM profile; `dim_products` with sales performance.
+- `mart` — tables: `fct_sales` partitioned by `sale_date` and clustered by `category/country/channel`; `dim_customers` with full RFM profile; `dim_products` with sales performance.
 
 **Data Quality**
-- Column-level schema tests: `unique`, `not_null` on all primary keys.
+- Column-level schema tests: `unique` + `not_null` on primary keys, `not_null` on email and sale customer, `accepted_values` on channel.
 - Custom singular tests: `assert_positive_revenue`, `assert_no_orphan_sales`.
-- Source freshness checks in `schema.yml`.
+- Source freshness on `raw.sales` (`loaded_at_field` = sale date; warn after 2 days, error after 7). On the static sample data this check warns by design.
 
 **SCD Type 2 Snapshots**
 - `scd_customers` tracks changes to `email`, `country`, `city`, `is_active` over time using dbt's `check` strategy.
 
 **Ingestion**
-- `load_to_bigquery.py` supports full WRITE_TRUNCATE loads and incremental MERGE upserts using BigQuery DML.
+- `load_to_bigquery.py` supports full WRITE_TRUNCATE loads and incremental MERGE upserts (it creates the target on the first incremental run).
 
 **Advanced SQL**
 - Window functions: running totals, 30-day moving averages, LAG/LEAD, RANK, cohort retention.
@@ -104,33 +95,32 @@ analytics-engineering-dbt-bigquery/
 ## Quick Start
 
 ```bash
-# 1. Clone + install
+# 1. Clone + install, create dbt_project/profiles.yml
 git clone https://github.com/jaiminbabariya7/analytics-engineering-dbt-bigquery.git
 cd analytics-engineering-dbt-bigquery
-pip install -r requirements.txt
+make setup
 
 # 2. Configure environment
 cp .env.example .env
 # Fill in GCP_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS, GCS_RAW_BUCKET
+set -a; . ./.env; set +a
 
-# 3. Configure dbt profile
-cp dbt_project/profiles.yml.example ~/.dbt/profiles.yml
+# 3. Infrastructure: raw/staging/mart/snapshots datasets, raw bucket, service account
+make terraform-init terraform-apply
 
-# 4. Load raw data
-python ingestion/load_to_bigquery.py --table customers --mode full
-python ingestion/load_to_bigquery.py --table products  --mode full
-python ingestion/load_to_bigquery.py --table sales     --mode full
+# 4. Upload the synthetic CSVs and load the raw tables
+make upload-data        # data/*.csv -> gs://$GCS_RAW_BUCKET/raw/<table>/<table>.csv
+make load-raw           # full loads into BigQuery `raw`
 
-# 5. Run dbt
-cd dbt_project
-dbt deps
-dbt run
-dbt test
-dbt snapshot
+# 5. Transform, test and snapshot
+make dbt-build          # dbt run + test + snapshot
+make dbt-freshness      # source freshness (warns on static sample data)
 
-# 6. Start Airflow (daily scheduling)
-airflow db init
-airflow dags unpause analytics_engineering_pipeline
+# 6. Churn model
+make churn-model
+
+# 7. Optional: local Airflow running the daily DAG
+make dev-up             # http://localhost:8080
 ```
 
 ## Environment Variables
@@ -141,7 +131,7 @@ airflow dags unpause analytics_engineering_pipeline
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON |
 | `GCS_RAW_BUCKET` | GCS bucket holding raw CSVs |
 | `BQ_RAW_DATASET` | BigQuery dataset for raw tables (default: `raw`) |
-| `BQ_DBT_DATASET` | BigQuery dataset for dbt output (default: `dbt_prod`) |
+| `BQ_DBT_DATASET` | dbt profile default dataset (models themselves go to `staging`, `mart`, `snapshots`) |
 
 ## Churn Model (BigQuery ML)
 

@@ -1,5 +1,8 @@
 version: "3.9"
 
+# Local Airflow (LocalExecutor) that runs the analytics_engineering_pipeline DAG.
+# dbt-bigquery is installed into the Airflow image at start-up (dev only).
+
 x-airflow-common: &airflow-common
   image: apache/airflow:2.8.0-python3.11
   environment:
@@ -10,15 +13,17 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
+    _PIP_ADDITIONAL_REQUIREMENTS: "dbt-bigquery==1.7.4"
     GCP_PROJECT_ID: ${GCP_PROJECT_ID}
-    GCS_BUCKET: ${GCS_BUCKET}
+    GCS_RAW_BUCKET: ${GCS_RAW_BUCKET}
+    BQ_RAW_DATASET: ${BQ_RAW_DATASET:-raw}
+    BQ_DBT_DATASET: ${BQ_DBT_DATASET:-dbt_prod}
     GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/gcp-keyfile.json
   volumes:
     - ./airflow/dags:/opt/airflow/dags
     - ./airflow/logs:/opt/airflow/logs
-    - ./airflow/plugins:/opt/airflow/plugins
-    - ./dbt_project:/opt/dbt_project
-    - ./great_expectations:/opt/great_expectations
+    - ./dbt_project:/opt/airflow/dbt_project
+    - ./ingestion:/opt/airflow/ingestion
     - ${GOOGLE_APPLICATION_CREDENTIALS}:/opt/airflow/gcp-keyfile.json:ro
   depends_on:
     postgres:
@@ -29,7 +34,7 @@ services:
     image: postgres:15
     environment:
       POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
+      POSTGRES_PASSWORD: airflow          # local dev only
       POSTGRES_DB: airflow
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -38,11 +43,23 @@ services:
       interval: 10s
       retries: 5
 
+  airflow-init:
+    <<: *airflow-common
+    command: >
+      bash -c "
+        airflow db migrate &&
+        airflow users create --username admin --password admin
+          --firstname Admin --lastname User --role Admin --email admin@example.com
+      "
+
   airflow-webserver:
     <<: *airflow-common
     command: webserver
     ports:
       - "8080:8080"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 30s
@@ -52,26 +69,22 @@ services:
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
-
-  airflow-init:
-    <<: *airflow-common
-    command: >
-      bash -c "
-        airflow db init &&
-        airflow users create --username admin --password admin
-          --firstname Admin --lastname User --role Admin --email admin@example.com
-      "
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
 
   dbt:
     build:
       context: .
       dockerfile: Dockerfile.dbt
+    profiles: ["tools"]
     volumes:
       - ./dbt_project:/opt/dbt_project
       - ${GOOGLE_APPLICATION_CREDENTIALS}:/opt/keyfile.json:ro
     environment:
       GCP_PROJECT_ID: ${GCP_PROJECT_ID}
       GOOGLE_APPLICATION_CREDENTIALS: /opt/keyfile.json
+      DBT_PROFILES_DIR: /opt/dbt_project
     working_dir: /opt/dbt_project
     command: ["dbt", "debug"]
 
