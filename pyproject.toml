@@ -1,14 +1,17 @@
 [build-system]
 requires=["setuptools>=68","wheel"]
-build-backend="setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 [project]
-name="bq-data-pipeline"
+name = "analytics-engineering-dbt-bigquery"
 version="1.0.0"
-description="BigQuery data pipeline with upsert logic"
+description = "dbt + BigQuery analytics engineering: staging/mart models, SCD2 snapshot, BigQuery ML churn model, Airflow"
 readme="README.md"
 license={text="MIT"}
 requires-python=">=3.10"
 authors=[{name="Jaimin Babariya",email="jaiminbabariya7@gmail.com"}]
-keywords=["bigquery","sql","data-engineering","gcp","analytics"]
+keywords = ["dbt", "bigquery", "analytics-engineering", "airflow", "bigquery-ml"]
 [tool.sqlfluff.core]
 dialect="bigquery"
+
+[tool.setuptools]
+packages = []
