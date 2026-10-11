@@ -20,7 +20,7 @@ GCS (raw CSV)
                └── dbt staging     (views — clean + cast)
                      └── dbt intermediate  (ephemeral — joins + RFM)
                            └── dbt mart    (tables — fct_sales, dim_customers, dim_products)
-                                 └── BigQuery ML  (churn prediction)
+                                 └── BigQuery ML  (churn-risk classifier, demo)
                                  └── dbt snapshots (SCD Type 2 — scd_customers)
 ```
 
@@ -85,7 +85,7 @@ analytics-engineering-dbt-bigquery/
 
 **Advanced SQL**
 - Window functions: running totals, 30-day moving averages, LAG/LEAD, RANK, cohort retention.
-- BigQuery ML: logistic regression churn model trained, evaluated, and scored entirely in SQL.
+- BigQuery ML: logistic regression churn-risk model trained, evaluated, and scored entirely in SQL (see Known limitations).
 
 ## dbt Models
 
@@ -142,6 +142,10 @@ airflow dags unpause analytics_engineering_pipeline
 | `GCS_RAW_BUCKET` | GCS bucket holding raw CSVs |
 | `BQ_RAW_DATASET` | BigQuery dataset for raw tables (default: `raw`) |
 | `BQ_DBT_DATASET` | BigQuery dataset for dbt output (default: `dbt_prod`) |
+
+## Known limitations
+
+- **BigQuery ML churn label:** `is_churned` is derived from the rule-based `churn_risk` field (recency > 90 days and ≤ 2 purchases), and recency and frequency are also model features, so the model largely re-learns that rule (label leakage). It demonstrates the BigQuery ML workflow, not a validated churn predictor. A proper version would define churn as no purchase in the 90 days after a cutoff date and build features only from data before the cutoff.
 
 ## Tech Stack
 
