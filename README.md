@@ -20,7 +20,7 @@ GCS (raw CSV)
                └── dbt staging     (views — clean + cast)
                      └── dbt intermediate  (ephemeral — joins + RFM)
                            └── dbt mart    (tables — fct_sales, dim_customers, dim_products)
-                                 └── BigQuery ML  (churn-risk classifier, demo)
+                                 └── BigQuery ML  (churn model, time-based label)
                                  └── dbt snapshots (SCD Type 2 — scd_customers)
 ```
 
@@ -58,7 +58,7 @@ analytics-engineering-dbt-bigquery/
 ├── sql/
 │   ├── window_functions_showcase.sql
 │   ├── customer_cohort_analysis.sql
-│   └── bigquery_ml_churn.sql
+│   └── bigquery_ml_churn.sql    # time-based churn label, train / evaluate / score
 ├── snapshots/
 │   └── architecture.svg
 ├── .env.example
@@ -69,7 +69,7 @@ analytics-engineering-dbt-bigquery/
 
 **dbt Layer Design**
 - `staging` — thin views that clean, cast, and rename raw columns; no business logic.
-- `intermediate` — ephemeral models that join tables and compute RFM metrics, LTV tier, and churn risk.
+- `intermediate` — ephemeral models that join tables and compute RFM metrics, LTV tier, and a rule-based churn-risk segment.
 - `mart` — production tables: `fct_sales` partitioned by `sale_date` and clustered by `category/country/channel`; `dim_customers` with full RFM profile; `dim_products` with sales performance.
 
 **Data Quality**
@@ -85,7 +85,7 @@ analytics-engineering-dbt-bigquery/
 
 **Advanced SQL**
 - Window functions: running totals, 30-day moving averages, LAG/LEAD, RANK, cohort retention.
-- BigQuery ML: logistic regression churn-risk model trained, evaluated, and scored entirely in SQL (see Known limitations).
+- BigQuery ML: logistic regression churn model with a time-based label (no purchase in the 90 days after a cutoff), trained, evaluated, and scored entirely in SQL.
 
 ## dbt Models
 
@@ -143,9 +143,17 @@ airflow dags unpause analytics_engineering_pipeline
 | `BQ_RAW_DATASET` | BigQuery dataset for raw tables (default: `raw`) |
 | `BQ_DBT_DATASET` | BigQuery dataset for dbt output (default: `dbt_prod`) |
 
-## Known limitations
+## Churn Model (BigQuery ML)
 
-- **BigQuery ML churn label:** `is_churned` is derived from the rule-based `churn_risk` field (recency > 90 days and ≤ 2 purchases), and recency and frequency are also model features, so the model largely re-learns that rule (label leakage). It demonstrates the BigQuery ML workflow, not a validated churn predictor. A proper version would define churn as no purchase in the 90 days after a cutoff date and build features only from data before the cutoff.
+`sql/bigquery_ml_churn.sql` trains a logistic-regression churn model with a **time-based label**, so there is no label leakage:
+
+- **Cutoff:** 90 days before the latest sale date.
+- **Features** (`mart.churn_features(as_of)` table function): recency, total orders, orders in the last 90 days, revenue, average order value, tenure, categories bought and average discount, computed only from sales on or before the cutoff.
+- **Label:** `is_churned = 1` if the customer made no purchase in the 90 days after the cutoff.
+- **Training:** class-weighted logistic regression with a random 20% evaluation split; `ML.EVALUATE` reports precision, recall, ROC AUC and log loss.
+- **Scoring:** the same feature function is applied as of the latest date, and `mart.churn_scores` holds each customer's probability of not purchasing in the next 90 days.
+
+The rule-based `churn_risk` column in `dim_customers` is a simple heuristic segment for reporting and is not used as the model label.
 
 ## Tech Stack
 
